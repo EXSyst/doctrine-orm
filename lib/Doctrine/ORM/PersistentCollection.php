@@ -164,9 +164,7 @@ final class PersistentCollection extends AbstractLazyCollection implements Selec
         // we need to set the back reference.
         if ($this->backRefFieldName && $this->association['type'] === ClassMetadata::ONE_TO_MANY) {
             // Set back reference to owner
-            $this->typeClass->reflFields[$this->backRefFieldName]->setValue(
-                $element, $this->owner
-            );
+            $this->typeClass->setFieldValue($element, $this->backRefFieldName, $this->owner);
 
             $this->em->getUnitOfWork()->setOriginalEntityProperty(
                 spl_object_hash($element), $this->backRefFieldName, $this->owner
@@ -191,9 +189,7 @@ final class PersistentCollection extends AbstractLazyCollection implements Selec
         // and we need to set the back reference.
         if ($this->backRefFieldName && $this->association['type'] === ClassMetadata::ONE_TO_MANY) {
             // Set back reference to owner
-            $this->typeClass->reflFields[$this->backRefFieldName]->setValue(
-                $element, $this->owner
-            );
+            $this->typeClass->setFieldValue($element, $this->backRefFieldName, $this->owner);
         }
     }
 

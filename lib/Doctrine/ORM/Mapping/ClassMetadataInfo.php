@@ -749,9 +749,7 @@ class ClassMetadataInfo implements ClassMetadata
      */
     public function setIdentifierValues($entity, array $id)
     {
-        foreach ($id as $idField => $idValue) {
-            $this->reflFields[$idField]->setValue($entity, $idValue);
-        }
+        $this->setFieldsValues($entity, $id);
     }
 
     /**
@@ -3397,6 +3395,33 @@ class ClassMetadataInfo implements ClassMetadata
     {
         if (isset($mapping['orderBy']) && !is_array($mapping['orderBy'])) {
             throw new InvalidArgumentException("'orderBy' is expected to be an array, not " . gettype($mapping['orderBy']));
+        }
+    }
+
+    /**
+     * @param object     $entity
+     * @param array|null $fields
+     * @return array
+     */
+    public function getFieldsValues($entity, ?array $fields = null): array
+    {
+        $fields = $fields ?? $this->reflFields;
+        $values = [];
+        foreach ($fields as $field => $_) {
+            $values[$field] = $this->reflFields[$field]->getValue($entity);
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param object $entity
+     * @param array  $fields
+     */
+    public function setFieldsValues($entity, array $fields): void
+    {
+        foreach ($fields as $field => $value) {
+            $this->reflFields[$field]->setValue($entity, $value);
         }
     }
 }
