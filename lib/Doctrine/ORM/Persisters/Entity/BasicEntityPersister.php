@@ -479,7 +479,7 @@ class BasicEntityPersister implements EntityPersister
 
             $where[]    = $versionColumn;
             $types[]    = $this->class->fieldMappings[$versionField]['type'];
-            $params[]   = $this->class->reflFields[$versionField]->getValue($entity);
+            $params[]   = $this->class->getFieldValue($entity, $versionField);
 
             switch ($versionFieldType) {
                 case Type::SMALLINT:
@@ -768,7 +768,7 @@ class BasicEntityPersister implements EntityPersister
 
             // Complete bidirectional association, if necessary
             if ($targetEntity !== null && $isInverseSingleValued) {
-                $targetClass->reflFields[$assoc['inversedBy']]->setValue($targetEntity, $sourceEntity);
+                $targetClass->setFieldValue($targetEntity, $assoc['inversedBy'], $sourceEntity);
             }
 
             return $targetEntity;
@@ -788,7 +788,7 @@ class BasicEntityPersister implements EntityPersister
             }
 
             $computedIdentifier[$targetClass->getFieldForColumn($targetKeyColumn)] =
-                $sourceClass->reflFields[$sourceClass->fieldNames[$sourceKeyColumn]]->getValue($sourceEntity);
+                $sourceClass->getFieldValue($sourceEntity, $sourceClass->fieldNames[$sourceKeyColumn]);
         }
 
         $targetEntity = $this->load($computedIdentifier, null, $assoc);
@@ -1000,7 +1000,7 @@ class BasicEntityPersister implements EntityPersister
             switch (true) {
                 case $sourceClass->containsForeignIdentifier:
                     $field = $sourceClass->getFieldForColumn($sourceKeyColumn);
-                    $value = $sourceClass->reflFields[$field]->getValue($sourceEntity);
+                    $value = $sourceClass->getFieldValue($sourceEntity, $field);
 
                     if (isset($sourceClass->associationMappings[$field])) {
                         $value = $this->em->getUnitOfWork()->getEntityIdentifier($value);
@@ -1011,7 +1011,7 @@ class BasicEntityPersister implements EntityPersister
 
                 case isset($sourceClass->fieldNames[$sourceKeyColumn]):
                     $field = $sourceClass->fieldNames[$sourceKeyColumn];
-                    $value = $sourceClass->reflFields[$field]->getValue($sourceEntity);
+                    $value = $sourceClass->getFieldValue($sourceEntity, $field);
 
                     break;
 
@@ -1783,7 +1783,7 @@ class BasicEntityPersister implements EntityPersister
         foreach ($owningAssoc['targetToSourceKeyColumns'] as $sourceKeyColumn => $targetKeyColumn) {
             if ($sourceClass->containsForeignIdentifier) {
                 $field = $sourceClass->getFieldForColumn($sourceKeyColumn);
-                $value = $sourceClass->reflFields[$field]->getValue($sourceEntity);
+                $value = $sourceClass->getFieldValue($sourceEntity, $field);
 
                 if (isset($sourceClass->associationMappings[$field])) {
                     $value = $this->em->getUnitOfWork()->getEntityIdentifier($value);
@@ -1801,7 +1801,7 @@ class BasicEntityPersister implements EntityPersister
             }
 
             $field = $sourceClass->fieldNames[$sourceKeyColumn];
-            $value = $sourceClass->reflFields[$field]->getValue($sourceEntity);
+            $value = $sourceClass->getFieldValue($sourceEntity, $field);
 
             $criteria[$tableAlias . "." . $targetKeyColumn] = $value;
             $parameters[] = [
