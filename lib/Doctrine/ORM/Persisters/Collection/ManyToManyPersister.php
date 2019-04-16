@@ -25,6 +25,7 @@ use Doctrine\ORM\Persisters\SqlValueVisitor;
 use Doctrine\ORM\PersistentCollection;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\Utility\PersisterHelper;
+use Doctrine\ORM\EXSystPatches\SqlWhereVisitor;
 
 /**
  * Persister for many-to-many collections.
@@ -256,14 +257,9 @@ class ManyToManyPersister extends AbstractCollectionPersister
                 : $id[$ownerMetadata->fieldNames[$value]];
         }
 
-        $parameters = $this->expandCriteriaParameters($criteria);
-
-        foreach ($parameters as $parameter) {
-            [$name, $value, $operator] = $parameter;
-
-            $field          = $this->quoteStrategy->getColumnName($name, $targetClass, $this->platform);
-            $whereClauses[] = sprintf('te.%s %s ?', $field, $operator);
-            $params[]       = $value;
+        $whereClause = $this->getWhereSql($criteria, $targetClass, $params);
+        if ($whereClause !== null) {
+            $whereClauses[] = $whereClause;
         }
 
         $tableName    = $this->quoteStrategy->getTableName($targetClass, $this->platform);
@@ -272,10 +268,66 @@ class ManyToManyPersister extends AbstractCollectionPersister
         $rsm = new Query\ResultSetMappingBuilder($this->em);
         $rsm->addRootEntityFromClassMetadata($targetClass->name, 'te');
 
+        $joins = [];
+        if ($targetClass->discriminatorColumn) {
+            $discrColumn = $targetClass->discriminatorColumn['name'];
+            $resultColumnName = 'te_' . $this->platform->getSQLResultCasing($discrColumn);
+            $rsm->setDiscriminatorColumn('te', $resultColumnName);
+            $rsm->addMetaResult('te', $resultColumnName, $discrColumn);
+            foreach ($targetClass->subClasses as $subClassName) {
+                $subClass = $this->em->getClassMetadata($subClassName);
+                if ($targetClass->inheritanceType == ClassMetadata::INHERITANCE_TYPE_JOINED) {
+                    $alias = 'te' . count($joins);
+                    $joinOn = [];
+                    foreach ($targetClass->getIdentifierColumnNames() as $idColumn) {
+                        $joinOn[] = 'te.' . $idColumn . ' = ' . $alias . '.' . $idColumn;
+                    }
+                    $joins[] = ' LEFT JOIN ' . $subClass->table['name'] . ' ' . $alias . ' ON ' . implode(' AND ', $joinOn);
+                } else {
+                    $alias = 'te';
+                }
+
+                // Regular columns
+                foreach ($subClass->fieldMappings as $fieldName => $mapping) {
+                    if (isset($mapping['inherited'])) {
+                        continue;
+                    }
+
+                    $rsm->addFieldResult($alias, $alias . '_' . $fieldName, $fieldName, $subClass->name);
+                }
+
+                // Foreign key columns
+                foreach ($subClass->associationMappings as $assoc) {
+                    if ( ! $assoc['isOwningSide']
+                            || ! ($assoc['type'] & ClassMetadata::TO_ONE)
+                            || isset($assoc['inherited'])) {
+                        continue;
+                    }
+
+                    foreach ($assoc['targetToSourceKeyColumns'] as $srcColumn) {
+                        $target2Class = $this->em->getClassMetadata($assoc['targetEntity']);
+
+                        $rsm->addMetaResult(
+                            $alias,
+                            $alias . '_' . $srcColumn,
+                            $srcColumn,
+                            false,
+                            PersisterHelper::getTypeOfColumn(
+                                $assoc['sourceToTargetKeyColumns'][$srcColumn],
+                                $target2Class,
+                                $this->em
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
         $sql = 'SELECT ' . $rsm->generateSelectClause()
             . ' FROM ' . $tableName . ' te'
             . ' JOIN ' . $joinTable  . ' t ON'
             . implode(' AND ', $onConditions)
+            . implode('', $joins)
             . ' WHERE ' . implode(' AND ', $whereClauses);
 
         $sql .= $this->getOrderingSql($criteria, $targetClass);
@@ -744,6 +796,19 @@ class ManyToManyPersister extends AbstractCollectionPersister
         list(, $types) = $valueVisitor->getParamsAndTypes();
 
         return $types;
+    }
+
+    private function getWhereSql(Criteria $criteria, ClassMetadata $targetClass, array &$params): ?string
+    {
+        $expression = $criteria->getWhereExpression();
+
+        if ($expression === null) {
+            return null;
+        }
+
+        $whereVisitor = new SqlWhereVisitor($this->quoteStrategy, $targetClass, $this->platform, 'te', $params);
+
+        return $whereVisitor->dispatch($expression);
     }
 
     /**
