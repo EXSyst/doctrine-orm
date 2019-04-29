@@ -2720,7 +2720,7 @@ class UnitOfWork implements PropertyChangedListener
                 $newFieldsValues[$field] = $value;
             }
         }
-        $class->setFieldsValues($newFieldsValues);
+        $class->setFieldsValues($entity, $newFieldsValues);
 
         // Loading the entity right here, if its in the eager loading map get rid of it there.
         unset($this->eagerLoadingEntities[$class->rootEntityName][$idHash]);
