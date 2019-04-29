@@ -649,6 +649,31 @@ class ClassMetadataInfo implements ClassMetadata
     private $instantiator;
 
     /**
+     * @var bool|null
+     */
+    private $hasFastAccesors;
+
+    /**
+     * @var \Closure[]|null
+     */
+    private $fastGetters;
+
+    /**
+     * @var \Closure[]|null
+     */
+    private $fastSetters;
+
+    /**
+     * @var \Closure|null
+     */
+    private $fastBatchGetter;
+
+    /**
+     * @var \Closure|null
+     */
+    private $fastBatchSetter;
+
+    /**
      * Initializes a new ClassMetadata instance that will hold the object-relational mapping
      * metadata of the class with the given name.
      *
@@ -763,6 +788,14 @@ class ClassMetadataInfo implements ClassMetadata
      */
     public function setFieldValue($entity, $field, $value)
     {
+        if (!isset($this->hasFastAccesors)) {
+            $this->initializeFastAccessors();
+        }
+        if ($this->hasFastAccesors) {
+            $this->fastSetters[$field]($entity, $value);
+            return;
+        }
+
         $this->reflFields[$field]->setValue($entity, $value);
     }
 
@@ -776,6 +809,13 @@ class ClassMetadataInfo implements ClassMetadata
      */
     public function getFieldValue($entity, $field)
     {
+        if (!isset($this->hasFastAccesors)) {
+            $this->initializeFastAccessors();
+        }
+        if ($this->hasFastAccesors) {
+            return $this->fastGetters[$field]($entity);
+        }
+
         return $this->reflFields[$field]->getValue($entity);
     }
 
@@ -3406,6 +3446,13 @@ class ClassMetadataInfo implements ClassMetadata
     public function getFieldsValues($entity, ?array $fields = null): array
     {
         $fields = $fields ?? $this->reflFields;
+        if (!isset($this->hasFastAccesors)) {
+            $this->initializeFastAccessors();
+        }
+        if ($this->hasFastAccesors) {
+            return ($this->fastBatchGetter)($entity, $fields);
+        }
+
         $values = [];
         foreach ($fields as $field => $_) {
             $values[$field] = $this->reflFields[$field]->getValue($entity);
@@ -3420,8 +3467,31 @@ class ClassMetadataInfo implements ClassMetadata
      */
     public function setFieldsValues($entity, array $fields): void
     {
+        if (!isset($this->hasFastAccesors)) {
+            $this->initializeFastAccessors();
+        }
+        if ($this->hasFastAccesors) {
+            ($this->fastBatchSetter)($entity, $fields);
+            return;
+        }
+
         foreach ($fields as $field => $value) {
             $this->reflFields[$field]->setValue($entity, $value);
         }
+    }
+
+    private function initializeFastAccessors(): void
+    {
+        $class = 'EXSyst\\ORMAcceleratorBundle\\__CG__\\FastAccessors\\'.$this->name;
+        $this->hasFastAccesors = \class_exists($class);
+        if (!$this->hasFastAccesors) {
+            return;
+        }
+
+        $class::initialize();
+        $this->fastGetters = $class::getFastGetters();
+        $this->fastSetters = $class::getFastSetters();
+        $this->fastBatchGetter = $class::getFastBatchGetter();
+        $this->fastBatchSetter = $class::getFastBatchSetter();
     }
 }
