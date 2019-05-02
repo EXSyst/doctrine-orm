@@ -2403,6 +2403,7 @@ class UnitOfWork implements PropertyChangedListener
             function ($assoc) { return $assoc['isCascadeRemove']; }
         );
 
+        $entitiesToCascade = [];
         $fieldsToQuery = [];
 
         foreach ($associationMappings as $assoc) {
