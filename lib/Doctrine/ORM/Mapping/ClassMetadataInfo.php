@@ -241,9 +241,9 @@ class ClassMetadataInfo implements ClassMetadata
      * )
      * </code>
      *
-     * @var array
-     *
      * @todo Merge with tableGeneratorDefinition into generic generatorDefinition
+     *
+     * @var array<string, string>|null
      */
     public $customGeneratorDefinition;
 
@@ -2055,7 +2055,7 @@ class ClassMetadataInfo implements ClassMetadata
      *
      * @param string $fieldName
      *
-     * @return \Doctrine\DBAL\Types\Type|string|null
+     * @return string|null
      *
      * @todo 3.0 Remove this. PersisterHelper should fix it somehow
      */
@@ -2071,7 +2071,7 @@ class ClassMetadataInfo implements ClassMetadata
      *
      * @param string $columnName
      *
-     * @return \Doctrine\DBAL\Types\Type|string|null
+     * @return string|null
      *
      * @deprecated 3.0 remove this. this method is bogus and unreliable, since it cannot resolve the type of a column
      *             that is derived by a referenced field on a different entity.

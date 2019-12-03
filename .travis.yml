@@ -6,6 +6,7 @@ php:
   - 7.1
   - 7.2
   - 7.3
+  - 7.4snapshot
   - nightly
 
 env:
@@ -32,22 +33,31 @@ jobs:
         mariadb: 10.1
 
     - stage: Test
+      dist: xenial
       env: DB=mysql MYSQL_VERSION=5.7
       php: 7.1
+      services:
+        - mysql
       before_script:
         - ./tests/travis/install-mysql-$MYSQL_VERSION.sh
       sudo: required
 
     - stage: Test
+      dist: xenial
       env: DB=mysql MYSQL_VERSION=5.7
       php: 7.2
+      services:
+        - mysql
       before_script:
         - ./tests/travis/install-mysql-$MYSQL_VERSION.sh
       sudo: required
 
     - stage: Test
+      dist: xenial
       env: DB=mysql MYSQL_VERSION=5.7
       php: nightly
+      services:
+        - mysql
       before_script:
         - ./tests/travis/install-mysql-$MYSQL_VERSION.sh
       sudo: required
